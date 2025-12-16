@@ -3,6 +3,8 @@ import { useState } from "react";
 import { parseCsv } from "../data/parse/parseCsv";
 import { detectWhitespace } from "../data/detect/whitespace";
 import { detectEmptyToNull } from "../data/detect/emptyToNull";
+import { detectNormalizeCase } from "../data/detect/normalizeCase";
+
 import { applyRules } from "../data/apply/applyRules";
 import { previewDiff } from "../data/apply/previewDiff";
 import { exportCsv } from "../data/export/exportCsv";
@@ -30,10 +32,13 @@ export default function App() {
 
     setDataset(data);
 
-    // 🔴 A) DETECT HERE (initial load)
+    // 🔴 A) DETECT ON INITIAL LOAD
     setIssues([
       ...detectWhitespace(data),
       ...detectEmptyToNull(data),
+      ...detectNormalizeCase(data, "lower"),
+      ...detectNormalizeCase(data, "upper"),
+      ...detectNormalizeCase(data, "title"),
     ]);
 
     setEnabled([]);
@@ -67,10 +72,13 @@ export default function App() {
 
     setDataset(next);
 
-    // 🔴 B) DETECT AGAIN AFTER APPLY
+    // 🔴 B) RE-DETECT AFTER APPLY
     setIssues([
       ...detectWhitespace(next),
       ...detectEmptyToNull(next),
+      ...detectNormalizeCase(next, "lower"),
+      ...detectNormalizeCase(next, "upper"),
+      ...detectNormalizeCase(next, "title"),
     ]);
 
     setEnabled([]);
@@ -100,7 +108,9 @@ export default function App() {
               style={{ marginLeft: 8 }}
               onClick={() => enableIssue(issue)}
             >
-              Preview
+              {issue.type === "NORMALIZE_CASE"
+                ? "Preview"
+                : "Preview"}
             </button>
           </li>
         ))}
