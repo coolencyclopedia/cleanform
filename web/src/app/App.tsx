@@ -1,14 +1,20 @@
 import { useState } from "react";
+
 import { parseCsv } from "../data/parse/parseCsv";
 import { detectWhitespace } from "../data/detect/whitespace";
 import { applyRules } from "../data/apply/applyRules";
 import { previewDiff } from "../data/apply/previewDiff";
+import { exportCsv } from "../data/export/exportCsv";
+import { exportJson } from "../data/export/exportJson";
+import { downloadFile } from "../utils/download";
+
 import type {
   Dataset,
   Issue,
   EnabledRule,
   CellDiff,
 } from "../data/model";
+
 import TablePreview from "../ui/TablePreview";
 
 export default function App() {
@@ -17,6 +23,7 @@ export default function App() {
   const [enabled, setEnabled] = useState<EnabledRule[]>([]);
   const [diffs, setDiffs] = useState<CellDiff[]>([]);
 
+  // ---- File upload ----
   async function onFile(file: File) {
     const data = await parseCsv(file);
     setDataset(data);
@@ -25,7 +32,10 @@ export default function App() {
     setDiffs([]);
   }
 
+  // ---- Enable rule preview (prevent double-enable) ----
   function enableIssue(issue: Issue) {
+    if (enabled.some((r) => r.id === issue.id)) return;
+
     const rule: EnabledRule = {
       id: issue.id,
       type: issue.type,
@@ -41,8 +51,9 @@ export default function App() {
     }
   }
 
+  // ---- Apply enabled rules ----
   function applyAll() {
-    if (!dataset) return;
+    if (!dataset || enabled.length === 0) return;
 
     const next = applyRules(dataset, enabled);
     setDataset(next);
@@ -53,6 +64,7 @@ export default function App() {
 
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif" }}>
+      {/* Upload */}
       <input
         type="file"
         accept=".csv"
@@ -62,6 +74,7 @@ export default function App() {
         }}
       />
 
+      {/* Detected issues */}
       <h3>Detected Issues</h3>
       <ul>
         {issues.map((issue) => (
@@ -78,6 +91,7 @@ export default function App() {
         ))}
       </ul>
 
+      {/* Diff preview */}
       {dataset && (
         <>
           <h3>Preview (first 10 rows)</h3>
@@ -85,6 +99,7 @@ export default function App() {
         </>
       )}
 
+      {/* Apply */}
       {enabled.length > 0 && (
         <button
           style={{ marginTop: 12 }}
@@ -92,6 +107,36 @@ export default function App() {
         >
           Apply {enabled.length} Rules
         </button>
+      )}
+
+      {/* Export */}
+      {dataset && (
+        <div style={{ marginTop: 16 }}>
+          <button
+            onClick={() =>
+              downloadFile(
+                exportCsv(dataset),
+                "cleaned.csv",
+                "text/csv"
+              )
+            }
+          >
+            Export CSV
+          </button>
+
+          <button
+            style={{ marginLeft: 8 }}
+            onClick={() =>
+              downloadFile(
+                exportJson(dataset),
+                "cleaned.json",
+                "application/json"
+              )
+            }
+          >
+            Export JSON
+          </button>
+        </div>
       )}
     </div>
   );
