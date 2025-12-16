@@ -32,3 +32,11 @@ export interface EnabledRule {
   columnIndex: number;
   apply: (value: CellValue) => CellValue;
 }
+
+export interface CellDiff {
+    rowIndex: number;
+    columnIndex: number;
+    before: CellValue;
+    after: CellValue;
+  }
+  

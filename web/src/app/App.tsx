@@ -2,38 +2,53 @@ import { useState } from "react";
 import { parseCsv } from "../data/parse/parseCsv";
 import { detectWhitespace } from "../data/detect/whitespace";
 import { applyRules } from "../data/apply/applyRules";
-import type { Dataset, Issue, EnabledRule } from "../data/model";
+import { previewDiff } from "../data/apply/previewDiff";
+import type {
+  Dataset,
+  Issue,
+  EnabledRule,
+  CellDiff,
+} from "../data/model";
+import TablePreview from "../ui/TablePreview";
 
 export default function App() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [enabled, setEnabled] = useState<EnabledRule[]>([]);
+  const [diffs, setDiffs] = useState<CellDiff[]>([]);
 
   async function onFile(file: File) {
     const data = await parseCsv(file);
     setDataset(data);
     setIssues(detectWhitespace(data));
     setEnabled([]);
+    setDiffs([]);
   }
 
   function enableIssue(issue: Issue) {
-    setEnabled((prev) => [
-      ...prev,
-      {
-        id: issue.id,
-        type: issue.type,
-        columnIndex: issue.columnIndex,
-        apply: issue.preview,
-      },
-    ]);
+    const rule: EnabledRule = {
+      id: issue.id,
+      type: issue.type,
+      columnIndex: issue.columnIndex,
+      apply: issue.preview,
+    };
+
+    const nextEnabled = [...enabled, rule];
+    setEnabled(nextEnabled);
+
+    if (dataset) {
+      setDiffs(previewDiff(dataset, nextEnabled));
+    }
   }
 
   function applyAll() {
     if (!dataset) return;
+
     const next = applyRules(dataset, enabled);
     setDataset(next);
     setIssues(detectWhitespace(next));
     setEnabled([]);
+    setDiffs([]);
   }
 
   return (
@@ -57,40 +72,26 @@ export default function App() {
               style={{ marginLeft: 8 }}
               onClick={() => enableIssue(issue)}
             >
-              Enable
+              Preview
             </button>
           </li>
         ))}
       </ul>
 
-      {enabled.length > 0 && (
-        <button onClick={applyAll}>
-          Apply {enabled.length} Rules
-        </button>
-      )}
-
       {dataset && (
         <>
-          <h3>Preview (first 5 rows)</h3>
-          <table border={1} cellPadding={4}>
-            <thead>
-              <tr>
-                {dataset.columns.map((c) => (
-                  <th key={c}>{c}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dataset.rows.slice(0, 5).map((row, i) => (
-                <tr key={i}>
-                  {row.map((cell, j) => (
-                    <td key={j}>{String(cell ?? "")}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h3>Preview (first 10 rows)</h3>
+          <TablePreview dataset={dataset} diffs={diffs} />
         </>
+      )}
+
+      {enabled.length > 0 && (
+        <button
+          style={{ marginTop: 12 }}
+          onClick={applyAll}
+        >
+          Apply {enabled.length} Rules
+        </button>
       )}
     </div>
   );
