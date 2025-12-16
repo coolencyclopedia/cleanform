@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { parseCsv } from "../data/parse/parseCsv";
 import { detectWhitespace } from "../data/detect/whitespace";
+import { detectEmptyToNull } from "../data/detect/emptyToNull";
 import { applyRules } from "../data/apply/applyRules";
 import { previewDiff } from "../data/apply/previewDiff";
 import { exportCsv } from "../data/export/exportCsv";
@@ -26,8 +27,15 @@ export default function App() {
   // ---- File upload ----
   async function onFile(file: File) {
     const data = await parseCsv(file);
+
     setDataset(data);
-    setIssues(detectWhitespace(data));
+
+    // 🔴 A) DETECT HERE (initial load)
+    setIssues([
+      ...detectWhitespace(data),
+      ...detectEmptyToNull(data),
+    ]);
+
     setEnabled([]);
     setDiffs([]);
   }
@@ -56,8 +64,15 @@ export default function App() {
     if (!dataset || enabled.length === 0) return;
 
     const next = applyRules(dataset, enabled);
+
     setDataset(next);
-    setIssues(detectWhitespace(next));
+
+    // 🔴 B) DETECT AGAIN AFTER APPLY
+    setIssues([
+      ...detectWhitespace(next),
+      ...detectEmptyToNull(next),
+    ]);
+
     setEnabled([]);
     setDiffs([]);
   }
