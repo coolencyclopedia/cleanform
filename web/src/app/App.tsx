@@ -24,6 +24,24 @@ import type {
 
 import TablePreview from "../ui/TablePreview";
 
+// -------- UI-only grouping --------
+function groupIssuesByColumn(issues: Issue[]) {
+  const map = new Map<number, Issue[]>();
+
+  for (const issue of issues) {
+    const list = map.get(issue.columnIndex) ?? [];
+    list.push(issue);
+    map.set(issue.columnIndex, list);
+  }
+
+  return Array.from(map.entries()).map(
+    ([columnIndex, issues]) => ({
+      columnIndex,
+      issues,
+    })
+  );
+}
+
 export default function App() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [issues, setIssues] = useState<Issue[]>([]);
@@ -49,7 +67,17 @@ export default function App() {
   }
 
   function enableIssue(issue: Issue) {
-    if (enabled.some((r) => r.id === issue.id)) return;
+    // Remove existing case-normalization for same column (radio behavior)
+    const filtered = enabled.filter(
+      (r) =>
+        !(
+          r.type === "NORMALIZE_CASE" &&
+          r.columnIndex === issue.columnIndex
+        )
+    );
+
+    // Prevent duplicates
+    if (filtered.some((r) => r.id === issue.id)) return;
 
     const rule: EnabledRule = {
       id: issue.id,
@@ -58,7 +86,7 @@ export default function App() {
       apply: issue.preview,
     };
 
-    const nextEnabled = [...enabled, rule];
+    const nextEnabled = [...filtered, rule];
     setEnabled(nextEnabled);
 
     if (dataset) {
@@ -97,21 +125,39 @@ export default function App() {
         }}
       />
 
-      <h3>Detected Issues</h3>
-      <ul>
-        {issues.map((issue) => (
-          <li key={issue.id}>
-            Column {issue.columnIndex}: {issue.description} (
-            {issue.rowIndices.length} rows)
-            <button
-              style={{ marginLeft: 8 }}
-              onClick={() => enableIssue(issue)}
-            >
-              Preview
-            </button>
-          </li>
-        ))}
-      </ul>
+      <h3 style={{ marginTop: 16 }}>Detected Issues</h3>
+
+      {groupIssuesByColumn(issues).map((group) => (
+        <div
+          key={group.columnIndex}
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 6,
+            padding: 12,
+            marginBottom: 12,
+          }}
+        >
+          <strong>Column {group.columnIndex}</strong>
+
+          <ul style={{ marginTop: 8 }}>
+            {group.issues.map((issue) => (
+              <li
+                key={issue.id}
+                style={{ marginBottom: 6 }}
+              >
+                {issue.description} (
+                {issue.rowIndices.length} rows)
+                <button
+                  style={{ marginLeft: 8 }}
+                  onClick={() => enableIssue(issue)}
+                >
+                  Preview
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
 
       {dataset && (
         <>
