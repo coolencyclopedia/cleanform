@@ -1,6 +1,36 @@
-name,joined
-Alice,2024-03-15
-Bob,15/03/2024
-Charlie,March 15, 2024
-Dave,03/04/05
-Eve,yesterday
+Name,Country,Email,Age,Salary,Joined Date,Notes,Name,Country,Email,Age,Salary,Joined Date,Notes
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
+ John ,USA,john@example.com ,25,50000,2024-03-15, 
+jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A,jane,usa , jane@example.com,030,62000.50,15/03/2024,N/A
+BOB,UsA,bob@example.com,not sure,70000,March 15, 2024,null
+alice,India, alice@example.com ,42,12,000,03/04/05,  
+ALICE,INDIA,ALICE@EXAMPLE.COM, ,85000,2024/03/15,NA
