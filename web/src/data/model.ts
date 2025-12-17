@@ -9,7 +9,7 @@ export interface Dataset {
   rows: Row[];
 }
 
-export type RuleType =
+  export type RuleType =
   | "TRIM_WHITESPACE"
   | "EMPTY_TO_NULL"
   | "NORMALIZE_CASE"
@@ -39,4 +39,10 @@ export interface CellDiff {
     before: CellValue;
     after: CellValue;
   }
+  
+export type CaseMode = "lower" | "upper" | "title";
+
+export interface CaseRuleConfig {
+    mode: CaseMode;
+    }
   

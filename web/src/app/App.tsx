@@ -4,6 +4,7 @@ import { parseCsv } from "../data/parse/parseCsv";
 import { detectWhitespace } from "../data/detect/whitespace";
 import { detectEmptyToNull } from "../data/detect/emptyToNull";
 import { detectNormalizeCase } from "../data/detect/normalizeCase";
+import { detectParseNumber } from "../data/detect/parseNumber";
 
 import { applyRules } from "../data/apply/applyRules";
 import { previewDiff } from "../data/apply/previewDiff";
@@ -29,23 +30,23 @@ export default function App() {
   // ---- File upload ----
   async function onFile(file: File) {
     const data = await parseCsv(file);
-
     setDataset(data);
 
-    // 🔴 A) DETECT ON INITIAL LOAD
+    // 🔴 DETECT ON LOAD
     setIssues([
       ...detectWhitespace(data),
       ...detectEmptyToNull(data),
       ...detectNormalizeCase(data, "lower"),
       ...detectNormalizeCase(data, "upper"),
       ...detectNormalizeCase(data, "title"),
+      ...detectParseNumber(data),
     ]);
 
     setEnabled([]);
     setDiffs([]);
   }
 
-  // ---- Enable rule preview (prevent double-enable) ----
+  // ---- Enable rule preview ----
   function enableIssue(issue: Issue) {
     if (enabled.some((r) => r.id === issue.id)) return;
 
@@ -69,16 +70,16 @@ export default function App() {
     if (!dataset || enabled.length === 0) return;
 
     const next = applyRules(dataset, enabled);
-
     setDataset(next);
 
-    // 🔴 B) RE-DETECT AFTER APPLY
+    // 🔴 RE-DETECT AFTER APPLY
     setIssues([
       ...detectWhitespace(next),
       ...detectEmptyToNull(next),
       ...detectNormalizeCase(next, "lower"),
       ...detectNormalizeCase(next, "upper"),
       ...detectNormalizeCase(next, "title"),
+      ...detectParseNumber(next),
     ]);
 
     setEnabled([]);
@@ -87,7 +88,6 @@ export default function App() {
 
   return (
     <div style={{ padding: 16, fontFamily: "sans-serif" }}>
-      {/* Upload */}
       <input
         type="file"
         accept=".csv"
@@ -97,7 +97,6 @@ export default function App() {
         }}
       />
 
-      {/* Detected issues */}
       <h3>Detected Issues</h3>
       <ul>
         {issues.map((issue) => (
@@ -108,15 +107,12 @@ export default function App() {
               style={{ marginLeft: 8 }}
               onClick={() => enableIssue(issue)}
             >
-              {issue.type === "NORMALIZE_CASE"
-                ? "Preview"
-                : "Preview"}
+              Preview
             </button>
           </li>
         ))}
       </ul>
 
-      {/* Diff preview */}
       {dataset && (
         <>
           <h3>Preview (first 10 rows)</h3>
@@ -124,7 +120,6 @@ export default function App() {
         </>
       )}
 
-      {/* Apply */}
       {enabled.length > 0 && (
         <button
           style={{ marginTop: 12 }}
@@ -134,7 +129,6 @@ export default function App() {
         </button>
       )}
 
-      {/* Export */}
       {dataset && (
         <div style={{ marginTop: 16 }}>
           <button
