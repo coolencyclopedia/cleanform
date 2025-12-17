@@ -5,6 +5,7 @@ import { detectWhitespace } from "../data/detect/whitespace";
 import { detectEmptyToNull } from "../data/detect/emptyToNull";
 import { detectNormalizeCase } from "../data/detect/normalizeCase";
 import { detectParseNumber } from "../data/detect/parseNumber";
+import { detectParseDate } from "../data/detect/parseDate";
 
 import { applyRules } from "../data/apply/applyRules";
 import { previewDiff } from "../data/apply/previewDiff";
@@ -27,12 +28,10 @@ export default function App() {
   const [enabled, setEnabled] = useState<EnabledRule[]>([]);
   const [diffs, setDiffs] = useState<CellDiff[]>([]);
 
-  // ---- File upload ----
   async function onFile(file: File) {
     const data = await parseCsv(file);
     setDataset(data);
 
-    // 🔴 DETECT ON LOAD
     setIssues([
       ...detectWhitespace(data),
       ...detectEmptyToNull(data),
@@ -40,13 +39,13 @@ export default function App() {
       ...detectNormalizeCase(data, "upper"),
       ...detectNormalizeCase(data, "title"),
       ...detectParseNumber(data),
+      ...detectParseDate(data),
     ]);
 
     setEnabled([]);
     setDiffs([]);
   }
 
-  // ---- Enable rule preview ----
   function enableIssue(issue: Issue) {
     if (enabled.some((r) => r.id === issue.id)) return;
 
@@ -65,14 +64,12 @@ export default function App() {
     }
   }
 
-  // ---- Apply enabled rules ----
   function applyAll() {
     if (!dataset || enabled.length === 0) return;
 
     const next = applyRules(dataset, enabled);
     setDataset(next);
 
-    // 🔴 RE-DETECT AFTER APPLY
     setIssues([
       ...detectWhitespace(next),
       ...detectEmptyToNull(next),
@@ -80,6 +77,7 @@ export default function App() {
       ...detectNormalizeCase(next, "upper"),
       ...detectNormalizeCase(next, "title"),
       ...detectParseNumber(next),
+      ...detectParseDate(next),
     ]);
 
     setEnabled([]);

@@ -1,5 +1,6 @@
-name,age,salary
-John,"25",50000
-Jane,"30",62000.50
-Bob,"not sure",70000
-Alice,"42",12000
+name,joined
+Alice,2024-03-15
+Bob,15/03/2024
+Charlie,March 15, 2024
+Dave,03/04/05
+Eve,yesterday
