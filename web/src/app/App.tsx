@@ -1,24 +1,26 @@
 import { useState } from "react";
 
 import { parseCsv } from "../data/parse/parseCsv";
-import { detectWhitespace } from "../data/detect/whitespace";
-import { detectEmptyToNull } from "../data/detect/emptyToNull";
-import { detectNormalizeCase } from "../data/detect/normalizeCase";
-import { detectParseNumber } from "../data/detect/parseNumber";
-import { detectParseDate } from "../data/detect/parseDate";
-
-import { applyRules } from "../data/apply/applyRules";
-import { previewDiff } from "../data/apply/previewDiff";
-import { exportCsv } from "../data/export/exportCsv";
-import { exportJson } from "../data/export/exportJson";
 import { downloadFile } from "../utils/download";
+
+import {
+  detectWhitespace,
+  detectEmptyToNull,
+  detectNormalizeCase,
+  detectParseNumber,
+  detectParseDate,
+  applyRules,
+  previewDiff,
+  exportCsv,
+  exportJson,
+} from "@cleanform/shared";
 
 import type {
   Dataset,
   Issue,
   EnabledRule,
   CellDiff,
-} from "../data/model";
+} from "@cleanform/shared";
 
 import TablePreview from "../ui/TablePreview";
 
