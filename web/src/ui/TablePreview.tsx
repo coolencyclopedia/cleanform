@@ -3,47 +3,64 @@ import type { Dataset, CellDiff } from "@cleanform/shared";
 
 const DEFAULT_COL_WIDTH = 160;
 const MIN_COL_WIDTH = 80;
+
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d")!;
-const CELL_FONT =
-  "14px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont";
+ctx.font =
+  "14px ui-sans-serif, system-ui, -apple-system";
 
-  function measureText(text: string) {
-    ctx.font = CELL_FONT;
-    return ctx.measureText(text).width;
-  }  
-
-interface Props {
-  dataset: Dataset;
-  diffs: CellDiff[];
+function measure(text: string) {
+  return ctx.measureText(text).width;
 }
 
-export default function TablePreview({ dataset, diffs }: Props) {
-  const [columnWidths, setColumnWidths] = useState<number[]>(
+export default function TablePreview({
+  dataset,
+  diffs,
+}: {
+  dataset: Dataset;
+  diffs: CellDiff[];
+}) {
+  const [widths, setWidths] = useState<number[]>(
     () => dataset.columns.map(() => DEFAULT_COL_WIDTH)
   );
 
   useEffect(() => {
-    setColumnWidths(
-      dataset.columns.map(() => DEFAULT_COL_WIDTH)
-    );
-  }, [dataset.columns.length]);
+    setWidths(dataset.columns.map(() => DEFAULT_COL_WIDTH));
+  }, [dataset.columns]);
 
+  useEffect(() => {
+    return () => {
+      window.onmousemove = null;
+      window.onmouseup = null;
+    };
+  }, []);
+
+  function diffAt(rowIndex: number, columnIndex: number) {
+    return diffs.find(
+      (d) =>
+        d.rowIndex === rowIndex &&
+        d.columnIndex === columnIndex
+    );
+  }
+  
   function startResize(
     e: React.MouseEvent,
-    colIndex: number
+    index: number
   ) {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth = columnWidths[colIndex];
+    const start = widths[index];
 
     function onMove(ev: MouseEvent) {
       const delta = ev.clientX - startX;
-      setColumnWidths((prev) =>
-        prev.map((w, i) =>
-          i === colIndex
-            ? Math.max(MIN_COL_WIDTH, startWidth + delta)
-            : w
+      setWidths((w) =>
+        w.map((x, i) =>
+          i === index
+            ? Math.max(
+                MIN_COL_WIDTH,
+                start + delta
+              )
+            : x
         )
       );
     }
@@ -57,101 +74,86 @@ export default function TablePreview({ dataset, diffs }: Props) {
     window.addEventListener("mouseup", onUp);
   }
 
-  function diffAt(r: number, c: number) {
-    return diffs.find(
-      (d) => d.rowIndex === r && d.columnIndex === c
-    );
-  }
+  function autoFit(index: number) {
+    let max = measure(dataset.columns[index] ?? "");
 
-  function autoFitColumn(colIndex: number) {
-    let maxWidth = measureText(
-      dataset.columns[colIndex] ?? ""
-    );
-  
-    for (let r = 0; r < dataset.rows.length; r++) {
-      const cell = dataset.rows[r][colIndex];
+    for (const row of dataset.rows) {
+      const cell = row[index];
       if (cell != null) {
-        maxWidth = Math.max(
-          maxWidth,
-          measureText(String(cell))
-        );
+        max = Math.max(max, measure(String(cell)));
       }
     }
-  
-    const fitted = Math.min(
-      520,
-      Math.max(
-        MIN_COL_WIDTH,
-        Math.ceil(maxWidth) + 48
-      )
-    );
-  
-    setColumnWidths((prev) =>
-      prev.map((w, i) =>
-        i === colIndex ? fitted : w
+
+    setWidths((w) =>
+      w.map((x, i) =>
+        i === index
+          ? Math.min(
+              520,
+              Math.max(MIN_COL_WIDTH, max + 48)
+            )
+          : x
       )
     );
   }
-  
-  const gridTemplate = columnWidths
-    .map((w) => `${w}px`)
-    .join(" ");
+
+  const grid = widths.map((w) => `${w}px`).join(" ");
 
   return (
-    <div className="table-grid-wrapper">
-      {/* HEADER */}
+    <div className="table-scroll">
+      <div className="table-grid-wrapper">
+        {/* header */}
         <div
           className="grid-row header-row"
-          style={{ gridTemplateColumns: gridTemplate }}
+          style={{ gridTemplateColumns: grid }}
         >
-          {dataset.columns.map((col, c) => (
+          {dataset.columns.map((col, i) => (
             <div
-              key={c}
+              key={i}
               className="cell header-cell"
-              onDoubleClick={() => autoFitColumn(c)}
+              onDoubleClick={() => autoFit(i)}
             >
               {col}
-
               <div
                 className="resize-handle"
-                onMouseDown={(e) => startResize(e, c)}
+                onMouseDown={(e) =>
+                  startResize(e, i)
+                }
               />
             </div>
           ))}
         </div>
 
+        {/* body */}
+        {dataset.rows.map((row, r) => (
+          <div
+            key={r}
+            className="grid-row"
+            style={{ gridTemplateColumns: grid }}
+          >
+            {row.map((cell, c) => {
+              const diff = diffAt(r, c);
 
-      {/* BODY */}
-      {dataset.rows.map((row, r) => (
-        <div
-          key={r}
-          className="grid-row"
-          style={{ gridTemplateColumns: gridTemplate }}
-        >
-          {row.map((cell, c) => {
-            const diff = diffAt(r, c);
-            return (
-              <div
-                key={c}
-                className={`cell ${diff ? "diff" : ""}`}
-              >
-                {!diff ? (
-                  cell ?? ""
-                ) : (
-                  <>
-                    <div className="before">
-                      {diff.before ?? ""}
+              return (
+                <div key={c} className="cell">
+                  {diff ? (
+                    <div className="cell-diff">
+                      <span className="cell-before">
+                        {diff.before ?? ""}
+                      </span>
+                      <span className="cell-arrow">→</span>
+                      <span className="cell-after">
+                        {diff.after ?? ""}
+                      </span>
                     </div>
-                    <div className="after">
-                      {diff.after ?? ""}
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ))}
+                  ) : (
+                    cell ?? ""
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

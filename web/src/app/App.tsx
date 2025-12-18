@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 
 import { parseCsv } from "../data/parse/parseCsv";
 import { parseExcel } from "../data/parse/parseExcel";
@@ -29,6 +28,22 @@ import TablePreview from "../ui/TablePreview";
 
 /* ---------- helpers ---------- */
 
+function isSupportedFile(file: File) {
+  return (
+    file.type === "text/csv" ||
+    file.name.endsWith(".csv") ||
+    file.name.endsWith(".xlsx") ||
+    file.name.endsWith(".xls")
+  );
+}
+
+function isFileDrag(e: React.DragEvent) {
+  return (
+    e.dataTransfer.types &&
+    Array.from(e.dataTransfer.types).includes("Files")
+  );
+}
+
 function groupIssuesByColumn(issues: Issue[]) {
   const map = new Map<number, Issue[]>();
 
@@ -54,94 +69,126 @@ export default function App() {
   const [enabled, setEnabled] = useState<EnabledRule[]>([]);
   const [diffs, setDiffs] = useState<CellDiff[]>([]);
   const [undoStack, setUndoStack] = useState<Dataset[]>([]);
-  const [rawDataset, setRawDataset] = useState<Dataset | null>(null);
-  const [hasHeader, setHasHeader] = useState<boolean>(true);
+
+  // raw rows only (NOT a Dataset)
+  const [rawRows, setRawRows] =
+    useState<Dataset["rows"] | null>(null);
+
+  const [hasHeader, setHasHeader] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
   const [fileMeta, setFileMeta] = useState<{
     name: string;
     size: number;
   } | null>(null);
 
+  /* ---------- drag handlers ---------- */
+
   function onDragOver(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
     e.preventDefault();
-    setIsDragging(true);
+    if (!isDragging) setIsDragging(true);
   }
-  
+
   function onDragLeave(e: React.DragEvent) {
-    e.preventDefault();
+    if (!isFileDrag(e)) return;
     setIsDragging(false);
   }
-  
+
   function onDrop(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+
     e.preventDefault();
     setIsDragging(false);
-  
+
     const file = e.dataTransfer.files?.[0];
     if (file) onFile(file);
-  }  
+  }
+
+  /* ---------- derive dataset ---------- */
 
   useEffect(() => {
-    if (!rawDataset || rawDataset.rows.length === 0) {
-      setDataset(null);
-      return;
-    }
-  
-    let next: Dataset;
-  
-    if (hasHeader) {
-      next = {
-        columns: rawDataset.rows[0].map(
-          (cell, i) => String(cell ?? `Column ${i + 1}`)
-        ),
-        rows: rawDataset.rows.slice(1),
-      };
-    } else {
-      next = {
-        columns: rawDataset.rows[0].map(
-          (_, i) => `Column ${i + 1}`
-        ),
-        rows: rawDataset.rows,
-      };
-    }
-  
-    setDataset(next);
-    recomputeIssues(next);
+    // always reset dependent state on structural change
     setEnabled([]);
     setDiffs([]);
     setUndoStack([]);
-  }, [rawDataset, hasHeader]);  
+  
+    if (!rawRows || rawRows.length === 0) {
+      setDataset(null);
+      setIssues([]);
+      return;
+    }
+  
+    // header-only file
+    if (hasHeader && rawRows.length === 1) {
+      const next: Dataset = {
+        columns: rawRows[0].map(
+          (c, i) => String(c ?? `Column ${i + 1}`)
+        ),
+        rows: [],
+      };
+  
+      setDataset(next);
+      setIssues([]);
+      return;
+    }
+  
+    // ✅ NORMAL CASE (this is what you were missing)
+    const next: Dataset = hasHeader
+      ? {
+          columns: rawRows[0].map(
+            (c, i) => String(c ?? `Column ${i + 1}`)
+          ),
+          rows: rawRows.slice(1),
+        }
+      : {
+          columns: rawRows[0].map(
+            (_, i) => `Column ${i + 1}`
+          ),
+          rows: rawRows,
+        };
+  
+    setDataset(next);
+    recomputeIssues(next);
+  }, [rawRows, hasHeader]);
+  
 
   /* ---------- file upload ---------- */
 
   async function onFile(file: File) {
+    setIsDragging(false);
+    if (!isSupportedFile(file)) {
+      alert("Unsupported file type. Please upload CSV or Excel.");
+      return;
+    }
+
     setIsLoading(true);
     setFileMeta({
       name: file.name,
       size: file.size,
     });
-  
+
     try {
-      let data: Dataset;
-  
-      if (file.name.endsWith(".csv")) {
-        data = await parseCsv(file);
-      } else if (
-        file.name.endsWith(".xlsx") ||
-        file.name.endsWith(".xls")
-      ) {
-        data = await parseExcel(file);
-      } else {
-        alert("Unsupported file type");
+      const data =
+        file.name.endsWith(".csv")
+          ? await parseCsv(file)
+          : await parseExcel(file);
+
+      if (data.rows.length > 20000) {
+        setRawRows(null);
+        setDataset(null);
+        alert("File too large to preview safely.");
         return;
       }
-  
-      setRawDataset(data);
-      setHasHeader(true); // default assumption
+      setRawRows(data.rows);
+      setHasHeader(true);
     } finally {
       setIsLoading(false);
     }
-  }  
+  }
+
+  /* ---------- issues ---------- */
 
   function recomputeIssues(data: Dataset) {
     setIssues([
@@ -155,7 +202,7 @@ export default function App() {
     ]);
   }
 
-  /* ---------- preview logic ---------- */
+  /* ---------- preview ---------- */
 
   function togglePreview(issue: Issue) {
     if (!dataset) return;
@@ -196,23 +243,19 @@ export default function App() {
   }
 
   function clearAllPreviews() {
-    if (!dataset) return;
     setEnabled([]);
     setDiffs([]);
   }
 
   function clearColumnPreviews(columnIndex: number) {
-    if (!dataset) return;
-
     const next = enabled.filter(
       (r) => r.columnIndex !== columnIndex
     );
-
     setEnabled(next);
-    setDiffs(previewDiff(dataset, next));
+    setDiffs(previewDiff(dataset!, next));
   }
 
-  /* ---------- apply & undo ---------- */
+  /* ---------- apply / undo ---------- */
 
   function applyAll() {
     if (!dataset || enabled.length === 0) return;
@@ -229,24 +272,24 @@ export default function App() {
   function applyColumn(columnIndex: number) {
     if (!dataset) return;
 
-    const columnRules = enabled.filter(
+    const rules = enabled.filter(
       (r) => r.columnIndex === columnIndex
     );
 
-    if (columnRules.length === 0) return;
+    if (rules.length === 0) return;
 
     setUndoStack((prev) => [...prev, dataset]);
 
-    const nextDataset = applyRules(dataset, columnRules);
-    setDataset(nextDataset);
-    recomputeIssues(nextDataset);
+    const next = applyRules(dataset, rules);
+    setDataset(next);
+    recomputeIssues(next);
 
     const remaining = enabled.filter(
       (r) => r.columnIndex !== columnIndex
     );
 
     setEnabled(remaining);
-    setDiffs(previewDiff(nextDataset, remaining));
+    setDiffs(previewDiff(next, remaining));
   }
 
   function undoLastApply() {
@@ -263,18 +306,6 @@ export default function App() {
     });
   }
 
-  /* ---------- helpers ---------- */
-
-  function isRuleActive(issue: Issue) {
-    return enabled.some((r) => r.id === issue.id);
-  }
-
-  function activeCountForColumn(columnIndex: number) {
-    return enabled.filter(
-      (r) => r.columnIndex === columnIndex
-    ).length;
-  }
-
   /* ---------- render ---------- */
 
   return (
@@ -289,6 +320,7 @@ export default function App() {
           <div>
             <h1>Data Cleanup Tool</h1>
             <p>Preview and normalize messy CSV / Excel data</p>
+
             {fileMeta && (
               <div className="file-badge">
                 <span>{fileMeta.name}</span>
@@ -299,17 +331,19 @@ export default function App() {
             )}
           </div>
 
-          {rawDataset && (
+          {rawRows && (
             <label className="header-toggle">
               <input
                 type="checkbox"
                 checked={hasHeader}
-                onChange={(e) => setHasHeader(e.target.checked)}
+                onChange={(e) =>
+                  setHasHeader(e.target.checked)
+                }
               />
               <span>First row contains headers</span>
             </label>
           )}
-          
+
           <label className="file-upload">
             <input
               type="file"
@@ -326,8 +360,8 @@ export default function App() {
         <div className="main">
           <aside className="rules">
             {groupIssuesByColumn(issues).map((group) => {
-              const activeCount = activeCountForColumn(
-                group.columnIndex
+              const hasActiveInColumn = enabled.some(
+                (r) => r.columnIndex === group.columnIndex
               );
 
               return (
@@ -338,40 +372,36 @@ export default function App() {
                   <div className="rule-group-title">
                     {dataset?.columns[group.columnIndex] ??
                       `Column ${group.columnIndex}`}
-
-                    {activeCount > 0 && (
-                      <span className="badge">
-                        {activeCount}
-                      </span>
-                    )}
                   </div>
 
-                  {activeCount > 0 && (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button
-                        className="secondary"
-                        onClick={() =>
-                          applyColumn(group.columnIndex)
-                        }
-                      >
-                        Apply column
-                      </button>
+                  {/* ✅ PER-COLUMN ACTIONS */}
+                  <div className="rule-group-actions">
+                    <button
+                      className="secondary small"
+                      disabled={!hasActiveInColumn}
+                      onClick={() =>
+                        applyColumn(group.columnIndex)
+                      }
+                    >
+                      Apply column
+                    </button>
 
-                      <button
-                        className="secondary"
-                        onClick={() =>
-                          clearColumnPreviews(
-                            group.columnIndex
-                          )
-                        }
-                      >
-                        Clear previews
-                      </button>
-                    </div>
-                  )}
+                    <button
+                      className="secondary small"
+                      disabled={!hasActiveInColumn}
+                      onClick={() =>
+                        clearColumnPreviews(group.columnIndex)
+                      }
+                    >
+                      Clear previews
+                    </button>
+                  </div>
 
+                  {/* EXISTING RULE LIST */}
                   {group.issues.map((issue) => {
-                    const active = isRuleActive(issue);
+                    const active = enabled.some(
+                      (r) => r.id === issue.id
+                    );
 
                     return (
                       <div
@@ -380,13 +410,8 @@ export default function App() {
                       >
                         <span>{issue.description}</span>
                         <button
-                          type="button"
-                          className={
-                            active ? "rule-active" : ""
-                          }
-                          onClick={() =>
-                            togglePreview(issue)
-                          }
+                          className={active ? "rule-active" : ""}
+                          onClick={() => togglePreview(issue)}
                         >
                           {active ? "Active" : "Preview"}
                         </button>
@@ -413,12 +438,7 @@ export default function App() {
                   diffs={diffs}
                 />
               ) : (
-                <div
-                  style={{
-                    padding: 24,
-                    color: "#94a3b8",
-                  }}
-                >
+                <div style={{ padding: 24, color: "#94a3b8" }}>
                   Upload a CSV or Excel file to see preview
                 </div>
               )}
@@ -485,8 +505,7 @@ export default function App() {
                     onClick={() =>
                       downloadFile(
                         exportExcel(dataset),
-                        "cleaned.xlsx",
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                        "cleaned.xlsx"
                       )
                     }
                   >
